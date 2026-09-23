@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roma: Sestertius Quest - Smart Learning Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-900 text-stone-100 font-sans h-screen flex flex-col justify-between overflow-hidden">
+
+    <!-- Top HUD (Stats, Sestertii & Codex Button) -->
+    <header class="bg-stone-950 border-b border-amber-700/50 p-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <span class="text-2xl">🏛️</span>
+            <div>
+                <h1 class="font-bold text-amber-400 text-sm md:text-base">Roma: Sestertius Quest</h1>
+                <p class="text-xs text-stone-400">Μάθημα 1ο: Η A' Κλίση & Οι Σηστέρτιοι</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <!-- Codex / Papyrus Button -->
+            <button onclick="toggleCodex()" class="bg-amber-900/60 hover:bg-amber-800 border border-amber-600 px-3 py-1 rounded-lg text-xs font-bold text-amber-300 flex items-center space-x-1 shadow">
+                <span>📜 Πάπυρος Γραμματικής</span>
+            </button>
+            <div class="bg-amber-950/80 border border-amber-600 px-3 py-1 rounded-full flex items-center space-x-1 shadow-inner">
+                <span class="text-yellow-400 font-bold">🪙</span>
+                <span id="sestertii" class="text-yellow-300 font-extrabold text-sm">100 HS</span>
+            </div>
+            <div class="bg-stone-800 px-3 py-1 rounded-full border border-stone-700 text-xs hidden md:block">
+                XP: <span id="xp" class="text-amber-400 font-bold">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Visual Novel Screen Area -->
+    <main class="relative flex-1 bg-cover bg-center flex flex-col justify-end p-4 md:p-8" 
+          style="background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.85)), url('https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop');">
+
+        <!-- Dialogue Box Container -->
+        <div class="w-full max-w-4xl mx-auto bg-stone-950/95 border-2 border-amber-600/80 rounded-xl shadow-2xl p-5 md:p-6 backdrop-blur-md relative z-10">
+            
+            <!-- Speaker Name -->
+            <div class="absolute -top-4 left-6 bg-amber-600 text-stone-950 px-4 py-1 rounded-lg font-bold text-xs md:text-sm uppercase tracking-wider shadow">
+                <span id="speaker-name">Εκατόνταρχος Γάιος</span>
+            </div>
+
+            <!-- Dialogue Text / Feedback -->
+            <p id="dialogue-text" class="text-stone-200 text-base md:text-lg min-h-[4rem] mt-2 mb-4 leading-relaxed">
+                «Πριν προχωρήσουμε στα λογιστικά του στρατοπέδου, θυμήσου: Στη λατινική γλώσσα, η **Γενική Ενικού της Α' Κλίσης** (όπως το *sestertius* ή τα θηλυκά σε *-a*) τελειώνει πάντα σε **-ae**! Έχεις τον πάπυρο ανοιχτό αν κολλήσεις.»
+            </p>
+
+            <!-- Interactive Choices / Quiz Options -->
+            <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <button onclick="handleQuiz(true)" class="bg-stone-800 hover:bg-emerald-800 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm shadow">
+                    A) Sestertii (Σωστή κατάληξη -ae)
+                </button>
+                <button onclick="handleQuiz(false)" class="bg-stone-800 hover:bg-rose-900 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm shadow">
+                    B) Sestertio (Λάθος κατάληξη)
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Codex Modal (Hidden by default) -->
+    <div id="codex-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-amber-100 text-stone-900 max-w-lg w-full p-6 rounded-xl border-4 border-amber-800 shadow-2xl relative">
+            <h2 class="text-xl font-bold text-amber-900 border-b-2 border-amber-800 pb-2 mb-3">📜 Πάπυρος: Βασική Γραμματική</h2>
+            <p class="text-sm mb-3 font-semibold">Α' Κλίση Ουσιαστικών (Θηλυκά / Ονομαστική - Γενική):</p>
+            <ul class="text-sm space-y-1 mb-4 list-disc pl-5">
+                <li><strong>Ονομαστική Ενικού:</strong> -a (π.χ. *Roma*)</li>
+                <li><strong>Γενική Ενικού:</strong> -ae (π.χ. *Romae* - της Ρώμης)</li>
+                <li><strong>Χρήση Σηστέρτιου:</strong> 4 Sestertii = 1 Denarius.</li>
+            </ul>
+            <button onclick="toggleCodex()" class="bg-amber-900 text-amber-100 font-bold px-4 py-2 rounded w-full hover:bg-amber-800 transition">Κλείσιμο Παπύρου</button>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script>
+        let state = {
+            sestertii: 100,
+            xp: 0
+        };
+
+        function updateHUD() {
+            document.getElementById('sestertii').innerText = state.sestertii + " HS";
+            document.getElementById('xp').innerText = state.xp;
+        }
+
+        function toggleCodex() {
+            const modal = document.getElementById('codex-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function handleQuiz(isCorrect) {
+            const speaker = document.getElementById('speaker-name');
+            const dialogue = document.getElementById('dialogue-text');
+            const container = document.getElementById('choices-container');
+
+            if (isCorrect) {
+                speaker.innerText = "Εκατόνταρχος Γάιος";
+                dialogue.innerText = "«Άψογα! Εφάρμοσες σωστά τον κανόνα του παπύρου. Κερδίζεις +30 Sestertii και +50 XP για το θησαυροφύλακιο!»";
+                state.sestertii += 30;
+                state.xp += 50;
+                container.innerHTML = `<button onclick="nextScene()" class="bg-amber-600 text-stone-950 font-bold p-3 rounded-lg text-center w-full">Επόμενη Αποστολή στο Στρατόπεδο</button>`;
+            } else {
+                speaker.innerText = "Εκατόνταρχος Γάιος";
+                dialogue.innerText = "«Λάθος, στρατιώτη! Δες ξανά τον Πάπυρο επάνω δεξιά. Η γενική τελειώνει σε -ae. Πλήρωσε πρόστιμο 10 Sestertii!»";
+                state.sestertii -= 10;
+                container.innerHTML = `<button onclick="resetQuiz()" class="bg-rose-800 text-white font-bold p-3 rounded-lg text-center w-full">Ξαναδοκίμασε την ερώτηση</button>`;
+            }
+            updateHUD();
+        }
+
+        function resetQuiz() {
+            document.getElementById('speaker-name').innerText = "Εκατόνταρχος Γάιος";
+            document.getElementById('dialogue-text').innerText = "«Για θυμήσου: Ποια είναι η Γενική Ενικού; Συμβουλεύσου τον Πάπυρο αν χρειαστεί.»";
+            document.getElementById('choices-container').innerHTML = `
+                <button onclick="handleQuiz(true)" class="bg-stone-800 hover:bg-emerald-800 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm">A) Sestertii (Σωστή κατάληξη -ae)</button>
+                <button onclick="handleQuiz(false)" class="bg-stone-800 hover:bg-rose-900 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm">B) Sestertio (Λάθος κατάληξη)</button>
+            `;
+        }
+
+        function nextScene() {
+            document.getElementById('speaker-name').innerText = "Γαλάτης Έμπορος";
+            document.getElementById('dialogue-text').innerText = "«Ψιτ! Αφού έμαθες τα λατινικά σου, θες να κάνουμε συναλλαγή με κρυφά σηστέρτια;»";
+            document.getElementById('choices-container').innerHTML = `
+                <button onclick="location.reload()" class="bg-amber-600 text-stone-950 font-bold p-3 rounded-lg text-center w-full">Επανεκκίνηση Demo</button>
+            `;
+        }
+    </script>
+</body>
+</html>
