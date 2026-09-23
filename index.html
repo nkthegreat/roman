@@ -3,14 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roma: Sestertius Quest - Campaign Map</title>
+    <title>Roma: Sestertius Quest - Dynamic Campaign</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom scrollbar for the map */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #292524; }
         ::-webkit-scrollbar-thumb { background: #b45309; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #d97706; }
+        
+        /* Απλό animation για όταν ξεκλειδώνει κάτι νέο */
+        @keyframes unlockPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+            50% { transform: scale(1.02); box-shadow: 0 0 15px 5px rgba(245, 158, 11, 0.4); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+        .just-unlocked { animation: unlockPulse 1.5s ease-out; }
     </style>
 </head>
 <body class="bg-stone-900 text-stone-100 font-sans h-screen flex flex-col overflow-hidden">
@@ -27,7 +34,7 @@
         <div class="flex items-center space-x-4">
             <div class="bg-amber-950/80 border border-amber-600 px-4 py-2 rounded-full flex items-center space-x-2 shadow-inner">
                 <span class="text-yellow-400 font-bold text-lg">🪙</span>
-                <span id="sestertii" class="text-yellow-300 font-extrabold text-base">0 HS</span>
+                <span id="sestertii-display" class="text-yellow-300 font-extrabold text-base transition-all duration-300">0 HS</span>
             </div>
         </div>
     </header>
@@ -36,8 +43,8 @@
     <main class="flex-1 overflow-y-auto p-4 md:p-8 relative" 
           style="background-image: linear-gradient(rgba(28, 25, 23, 0.85), rgba(28, 25, 23, 0.95)), url('https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop'); background-size: cover; background-attachment: fixed;">
         
-        <div class="max-w-3xl mx-auto" id="campaign-container">
-            <!-- Content will be injected by JavaScript -->
+        <div class="max-w-3xl mx-auto pb-20" id="campaign-container">
+            <!-- Εδώ θα ζωγραφιστεί δυναμικά η λίστα με τη JS -->
         </div>
     </main>
 
@@ -56,7 +63,7 @@
                 <p id="modal-desc" class="text-stone-300 text-sm mb-6"></p>
                 
                 <div class="flex space-x-3">
-                    <button onclick="playLesson()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold py-3 rounded-lg shadow transition">
+                    <button onclick="playCurrentLesson()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold py-3 rounded-lg shadow transition">
                         ⚔️ Έναρξη Quest
                     </button>
                     <button onclick="closeModal()" class="bg-stone-700 hover:bg-stone-600 text-stone-200 font-bold py-3 px-4 rounded-lg shadow transition">
@@ -67,109 +74,138 @@
         </div>
     </div>
 
+    <!-- Toast Notification (Achievement Popup) -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-emerald-800 text-white px-6 py-3 rounded-full shadow-2xl font-bold border-2 border-emerald-500 transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+        🎉 Μάθημα Ολοκληρώθηκε! +50 HS
+    </div>
+
     <script>
-        // Η δομή των 20 μαθημάτων
+        // --- 1. Το State της εφαρμογής (Όπως το ViewModel) ---
+        let state = {
+            highestUnlockedLesson: 1, // Ο παίκτης ξεκινάει έχοντας πρόσβαση μόνο στο 1
+            sestertii: 0,
+            currentSelectedLessonId: null // Κρατάει το ID του μαθήματος που άνοιξε στο Modal
+        };
+
+        // --- 2. Τα Δεδομένα (Η Βάση μας) ---
         const modules = [
             {
-                id: 1,
                 title: "Ενότητα I: Τα Θεμέλια της Ρώμης",
                 lessons: [
-                    { id: 1, title: "Ecce Roma!", desc: "Εισαγωγή, αλφάβητο και λατινική προφορά.", icon: "🗣️", unlocked: true },
-                    { id: 2, title: "Η Οικογένεια", desc: "Η Α' Κλίση ουσιαστικών (θηλυκά σε -a, π.χ. puella, Roma).", icon: "👩", unlocked: false },
-                    { id: 3, title: "Το Νόμισμα", desc: "Η Β' Κλίση ουσιαστικών (αρσενικά σε -us, π.χ. sestertius).", icon: "🪙", unlocked: false },
-                    { id: 4, title: "Sum, Es, Est", desc: "Το ρήμα esse (είμαι) στον Ενεστώτα.", icon: "✨", unlocked: false },
-                    { id: 5, title: "Καλοί και Κακοί", desc: "Επίθετα Α'-Β' κλίσης & συμφωνία με το ουσιαστικό.", icon: "⚖️", unlocked: false }
+                    { id: 1, title: "Ecce Roma!", desc: "Εισαγωγή, αλφάβητο και λατινική προφορά.", icon: "🗣️" },
+                    { id: 2, title: "Η Οικογένεια", desc: "Η Α' Κλίση ουσιαστικών (θηλυκά σε -a).", icon: "👩" },
+                    { id: 3, title: "Το Νόμισμα", desc: "Η Β' Κλίση ουσιαστικών (αρσενικά σε -us).", icon: "🪙" },
+                    { id: 4, title: "Sum, Es, Est", desc: "Το ρήμα esse (είμαι) στον Ενεστώτα.", icon: "✨" },
+                    { id: 5, title: "Καλοί και Κακοί", desc: "Επίθετα Α'-Β' κλίσης & συμφωνία με το ουσιαστικό.", icon: "⚖️" }
                 ]
             },
             {
-                id: 2,
                 title: "Ενότητα II: Στο Στρατόπεδο",
                 lessons: [
-                    { id: 6, title: "Ο Λεγεωνάριος", desc: "Η Γ' Κλίση ουσιαστικών (σύμφωνα, π.χ. miles, rex).", icon: "🛡️", unlocked: false },
-                    { id: 7, title: "Η Δράση", desc: "Οι 4 βασικές συζυγίες ρημάτων στον Ενεστώτα.", icon: "⚔️", unlocked: false },
-                    { id: 8, title: "Ο Στόχος", desc: "Αιτιατική πτώση (Άμεσο Αντικείμενο) & βασική σύνταξη.", icon: "🎯", unlocked: false },
-                    { id: 9, title: "Η Ιδιοκτησία", desc: "Γενική πτώση (Κτητική / 'του στρατιώτη').", icon: "📜", unlocked: false },
-                    { id: 10, title: "Η Αγορά", desc: "Αριθμητικά & Νομισματικό σύστημα (As, Sestertius, Denarius).", icon: "⚖️", unlocked: false }
+                    { id: 6, title: "Ο Λεγεωνάριος", desc: "Η Γ' Κλίση ουσιαστικών (σύμφωνα).", icon: "🛡️" },
+                    { id: 7, title: "Η Δράση", desc: "Οι 4 βασικές συζυγίες ρημάτων στον Ενεστώτα.", icon: "⚔️" },
+                    { id: 8, title: "Ο Στόχος", desc: "Αιτιατική πτώση (Άμεσο Αντικείμενο).", icon: "🎯" },
+                    { id: 9, title: "Η Ιδιοκτησία", desc: "Γενική πτώση (Κτητική).", icon: "📜" },
+                    { id: 10, title: "Η Αγορά", desc: "Αριθμητικά & Νομισματικό σύστημα.", icon: "⚖️" }
                 ]
             },
             {
-                id: 3,
                 title: "Ενότητα III: Δράση και Ιστορία",
                 lessons: [
-                    { id: 11, title: "Χθες στη Σύγκλητο", desc: "Παρατατικός και Παρελθοντικοί χρόνοι.", icon: "🏛️", unlocked: false },
-                    { id: 12, title: "Δώρο στους Θεούς", desc: "Δοτική πτώση (Έμμεσο Αντικείμενο).", icon: "🏺", unlocked: false },
-                    { id: 13, title: "Αυτός, Εκείνος", desc: "Δεικτικές Αντωνυμίες (hic, ille, is).", icon: "👉", unlocked: false },
-                    { id: 14, title: "Et tu, Brute?", desc: "Κλητική πτώση (Προσφώνηση).", icon: "🗡️", unlocked: false },
-                    { id: 15, title: "Διαταγές!", desc: "Προστακτική έγκλιση (Εντολές λεγεωνάριου).", icon: "📢", unlocked: false }
+                    { id: 11, title: "Χθες στη Σύγκλητο", desc: "Παρατατικός και Παρελθοντικοί χρόνοι.", icon: "🏛️" },
+                    { id: 12, title: "Δώρο στους Θεούς", desc: "Δοτική πτώση (Έμμεσο Αντικείμενο).", icon: "🏺" },
+                    { id: 13, title: "Αυτός, Εκείνος", desc: "Δεικτικές Αντωνυμίες (hic, ille, is).", icon: "👉" },
+                    { id: 14, title: "Et tu, Brute?", desc: "Κλητική πτώση (Προσφώνηση).", icon: "🗡️" },
+                    { id: 15, title: "Διαταγές!", desc: "Προστακτική έγκλιση (Εντολές λεγεωνάριου).", icon: "📢" }
                 ]
             },
             {
-                id: 4,
                 title: "Ενότητα IV: Η Τελική Δοκιμασία",
                 lessons: [
-                    { id: 16, title: "Σκοπός της Ζωής", desc: "Απλά απαρέμφατα και χρήση τους.", icon: "🔗", unlocked: false },
-                    { id: 17, title: "Ο Πράττων", desc: "Εισαγωγή στις μετοχές ενεστώτα.", icon: "🏃", unlocked: false },
-                    { id: 18, title: "Όταν και Όπου", desc: "Δευτερεύουσες προτάσεις (τοπικές/χρονικές).", icon: "⏳", unlocked: false },
-                    { id: 19, title: "Ο Πόλεμος της Γαλατίας", desc: "Ανάγνωση και μετάφραση μικρών ιστοριών του Καίσαρα.", icon: "📖", unlocked: false },
-                    { id: 20, title: "Magister", desc: "Boss Fight: Μετάφραση επιγραφής για την τελική νίκη.", icon: "👑", unlocked: false }
+                    { id: 16, title: "Σκοπός της Ζωής", desc: "Απλά απαρέμφατα και χρήση τους.", icon: "🔗" },
+                    { id: 17, title: "Ο Πράττων", desc: "Εισαγωγή στις μετοχές ενεστώτα.", icon: "🏃" },
+                    { id: 18, title: "Όταν και Όπου", desc: "Δευτερεύουσες προτάσεις (τοπικές/χρονικές).", icon: "⏳" },
+                    { id: 19, title: "Ο Πόλεμος της Γαλατίας", desc: "Ανάγνωση και μετάφραση ιστοριών του Καίσαρα.", icon: "📖" },
+                    { id: 20, title: "Magister", desc: "Boss Fight: Μετάφραση επιγραφής για την τελική νίκη.", icon: "👑" }
                 ]
             }
         ];
 
-        // Rendering the Campaign Map
-        const container = document.getElementById('campaign-container');
-        
-        modules.forEach((mod, modIndex) => {
-            // Module Header
-            const modHeader = document.createElement('div');
-            modHeader.className = "mb-4 mt-8 flex items-center space-x-4";
-            modHeader.innerHTML = `
-                <div class="h-[2px] flex-1 bg-amber-700/50"></div>
-                <h3 class="text-amber-500 font-bold tracking-widest uppercase text-sm">${mod.title}</h3>
-                <div class="h-[2px] flex-1 bg-amber-700/50"></div>
-            `;
-            container.appendChild(modHeader);
+        // --- 3. Η συνάρτηση που "ζωγραφίζει" το UI (Το Recompose μας) ---
+        function renderMap(justUnlockedId = null) {
+            const container = document.getElementById('campaign-container');
+            container.innerHTML = ''; // Καθαρίζουμε το UI
 
-            // Lessons List
-            const lessonList = document.createElement('div');
-            lessonList.className = "space-y-3";
-
-            mod.lessons.forEach(lesson => {
-                const isLocked = !lesson.unlocked;
-                const card = document.createElement('div');
-                card.className = `p-4 rounded-xl border-2 flex items-center justify-between transition-all duration-300 ${
-                    isLocked 
-                    ? "bg-stone-900/50 border-stone-800 opacity-60 cursor-not-allowed" 
-                    : "bg-stone-800/90 border-amber-600/50 hover:border-amber-400 hover:bg-stone-700 cursor-pointer shadow-lg transform hover:-translate-y-1"
-                }`;
-                
-                card.innerHTML = `
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-full ${isLocked ? 'bg-stone-800 text-stone-500' : 'bg-amber-900/50 text-amber-400'} flex items-center justify-center text-xl border ${isLocked ? 'border-stone-700' : 'border-amber-500'}">
-                            ${isLocked ? '🔒' : lesson.icon}
-                        </div>
-                        <div>
-                            <h4 class="font-bold ${isLocked ? 'text-stone-500' : 'text-stone-200'}">Μάθημα ${lesson.id}: ${lesson.title}</h4>
-                            <p class="text-xs ${isLocked ? 'text-stone-600' : 'text-stone-400'} mt-1 truncate max-w-[200px] md:max-w-md">${lesson.desc}</p>
-                        </div>
-                    </div>
-                    ${!isLocked ? '<span class="text-amber-500 hidden md:block">▶</span>' : ''}
+            modules.forEach(mod => {
+                // Φτιάχνουμε το Header της Ενότητας
+                const modHeader = document.createElement('div');
+                modHeader.className = "mb-4 mt-8 flex items-center space-x-4";
+                modHeader.innerHTML = `
+                    <div class="h-[2px] flex-1 bg-amber-700/50"></div>
+                    <h3 class="text-amber-500 font-bold tracking-widest uppercase text-sm text-center">${mod.title}</h3>
+                    <div class="h-[2px] flex-1 bg-amber-700/50"></div>
                 `;
+                container.appendChild(modHeader);
 
-                if (!isLocked) {
-                    card.onclick = () => openModal(mod.title, lesson);
-                }
-                
-                lessonList.appendChild(card);
+                // Φτιάχνουμε τη λίστα των μαθημάτων
+                const lessonList = document.createElement('div');
+                lessonList.className = "space-y-3";
+
+                mod.lessons.forEach(lesson => {
+                    // Εδώ είναι η καρδιά της λογικής! Ελέγχουμε το state.
+                    const isLocked = lesson.id > state.highestUnlockedLesson;
+                    const isCompleted = lesson.id < state.highestUnlockedLesson;
+                    const isJustUnlocked = lesson.id === justUnlockedId; // Για το animation
+
+                    const card = document.createElement('div');
+                    
+                    // Δυναμικά CSS classes
+                    let cardClasses = "p-4 rounded-xl border-2 flex items-center justify-between transition-all duration-300 relative overflow-hidden ";
+                    
+                    if (isLocked) {
+                        cardClasses += "bg-stone-900/50 border-stone-800 opacity-60 cursor-not-allowed";
+                    } else {
+                        cardClasses += "bg-stone-800/90 border-amber-600/50 hover:border-amber-400 hover:bg-stone-700 cursor-pointer shadow-lg transform hover:-translate-y-1";
+                        if (isJustUnlocked) cardClasses += " just-unlocked border-amber-400"; // Προσθήκη animation
+                    }
+                    
+                    card.className = cardClasses;
+                    
+                    // Το περιεχόμενο της κάρτας
+                    card.innerHTML = `
+                        ${isCompleted ? '<div class="absolute top-0 right-0 bg-emerald-600 text-xs px-2 py-1 rounded-bl-lg font-bold">✓ Ολοκληρώθηκε</div>' : ''}
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 rounded-full ${isLocked ? 'bg-stone-800 text-stone-500' : 'bg-amber-900/50 text-amber-400'} flex items-center justify-center text-xl border ${isLocked ? 'border-stone-700' : 'border-amber-500'}">
+                                ${isLocked ? '🔒' : lesson.icon}
+                            </div>
+                            <div>
+                                <h4 class="font-bold ${isLocked ? 'text-stone-500' : 'text-stone-200'}">Μάθημα ${lesson.id}: ${lesson.title}</h4>
+                                <p class="text-xs ${isLocked ? 'text-stone-600' : 'text-stone-400'} mt-1 truncate max-w-[200px] md:max-w-md">${lesson.desc}</p>
+                            </div>
+                        </div>
+                        ${!isLocked ? '<span class="text-amber-500 hidden md:block text-2xl">▶</span>' : ''}
+                    `;
+
+                    // Αν δεν είναι κλειδωμένο, του δίνουμε onclick event
+                    if (!isLocked) {
+                        card.onclick = () => openModal(mod.title, lesson);
+                    }
+                    
+                    lessonList.appendChild(card);
+                });
+
+                container.appendChild(lessonList);
             });
 
-            container.appendChild(lessonList);
-        });
+            // Ανανεώνουμε το HUD των Σηστέρτιων
+            document.getElementById('sestertii-display').innerText = state.sestertii + " HS";
+        }
 
-        // Modal Logic
+        // --- 4. Logic του Modal ---
         const modal = document.getElementById('lesson-modal');
         
         function openModal(moduleTitle, lesson) {
+            state.currentSelectedLessonId = lesson.id; // Αποθηκεύουμε ποιο μάθημα πάτησε
             document.getElementById('modal-module').innerText = moduleTitle;
             document.getElementById('modal-title').innerText = `Μάθημα ${lesson.id}: ${lesson.title}`;
             document.getElementById('modal-desc').innerText = lesson.desc;
@@ -179,12 +215,52 @@
 
         function closeModal() {
             modal.classList.add('hidden');
+            state.currentSelectedLessonId = null;
         }
 
-        function playLesson() {
-            alert("Εδώ θα φόρτωνε η οθόνη του Visual Novel για αυτό το μάθημα!");
+        // --- 5. Η Λειτουργία Ολοκλήρωσης (Το Gameplay Loop) ---
+        function playCurrentLesson() {
             closeModal();
+            
+            // Κάνουμε simulate ότι έπαιξε και κέρδισε το μάθημα
+            const completedId = state.currentSelectedLessonId;
+            let newlyUnlockedId = null;
+
+            // 5α: Αν ολοκλήρωσε το "τελευταίο" διαθέσιμο, του ξεκλειδώνουμε το επόμενο!
+            if (completedId === state.highestUnlockedLesson && state.highestUnlockedLesson < 20) {
+                state.highestUnlockedLesson++;
+                newlyUnlockedId = state.highestUnlockedLesson; // Για να του κάνουμε animation
+            }
+
+            // 5β: Του δίνουμε την ανταμοιβή
+            state.sestertii += 50;
+
+            // 5γ: Εμφάνιση Toast & Re-render (Recompose)
+            showToast(`🎉 Μάθημα ${completedId} Ολοκληρώθηκε! +50 HS`);
+            renderMap(newlyUnlockedId);
+
+            // Αν ξεκλείδωσε νέο, σκρολάρουμε ελαφρώς προς τα κάτω για να το δει
+            if (newlyUnlockedId) {
+                setTimeout(() => {
+                    window.scrollBy({ top: 100, behavior: 'smooth' });
+                }, 300);
+            }
         }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.remove('opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 2500);
+        }
+
+        // --- Αρχικοποίηση ---
+        // Τρέχουμε την renderMap την πρώτη φορά που φορτώνει η σελίδα
+        renderMap();
+
     </script>
 </body>
 </html>
