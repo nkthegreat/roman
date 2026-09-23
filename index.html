@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roma: Sestertius Quest - Dynamic Campaign</title>
+    <title>Roma: Lingua Invicta</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 8px; }
@@ -11,44 +11,48 @@
         ::-webkit-scrollbar-thumb { background: #b45309; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #d97706; }
         
-        /* Απλό animation για όταν ξεκλειδώνει κάτι νέο */
         @keyframes unlockPulse {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
             50% { transform: scale(1.02); box-shadow: 0 0 15px 5px rgba(245, 158, 11, 0.4); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
         }
         .just-unlocked { animation: unlockPulse 1.5s ease-out; }
+        
+        .typewriter {
+            overflow: hidden;
+            border-right: .15em solid orange;
+            white-space: normal;
+            animation: typing 2s steps(40, end), blink-caret .75s step-end infinite;
+        }
     </style>
 </head>
-<body class="bg-stone-900 text-stone-100 font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-stone-900 text-stone-100 font-sans h-screen overflow-hidden flex flex-col">
 
-    <!-- Top HUD -->
-    <header class="bg-stone-950 border-b border-amber-700/50 p-4 flex justify-between items-center shadow-lg z-20">
-        <div class="flex items-center space-x-3">
-            <span class="text-3xl">🏛️</span>
-            <div>
-                <h1 class="font-bold text-amber-400 text-sm md:text-lg tracking-wide uppercase">Roma: Lingua Invicta</h1>
-                <p class="text-xs text-stone-400">Επίπεδο: A1 (Tiro)</p>
+    <!-- ==================== VIEW 1: CAMPAIGN MAP ==================== -->
+    <div id="map-view" class="flex-1 flex flex-col h-full">
+        <header class="bg-stone-950 border-b border-amber-700/50 p-4 flex justify-between items-center shadow-lg z-20">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl">🏛️</span>
+                <div>
+                    <h1 class="font-bold text-amber-400 text-sm md:text-lg tracking-wide uppercase">Roma: Lingua Invicta</h1>
+                    <p class="text-xs text-stone-400">Rank: A1 (Tiro)</p>
+                </div>
             </div>
-        </div>
-        <div class="flex items-center space-x-4">
-            <div class="bg-amber-950/80 border border-amber-600 px-4 py-2 rounded-full flex items-center space-x-2 shadow-inner">
-                <span class="text-yellow-400 font-bold text-lg">🪙</span>
-                <span id="sestertii-display" class="text-yellow-300 font-extrabold text-base transition-all duration-300">0 HS</span>
+            <div class="flex items-center space-x-4">
+                <div class="bg-amber-950/80 border border-amber-600 px-4 py-2 rounded-full flex items-center space-x-2 shadow-inner">
+                    <span class="text-yellow-400 font-bold text-lg">🪙</span>
+                    <span id="map-sestertii" class="text-yellow-300 font-extrabold text-base">0 HS</span>
+                </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- Campaign Map Area -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-8 relative" 
-          style="background-image: linear-gradient(rgba(28, 25, 23, 0.85), rgba(28, 25, 23, 0.95)), url('https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop'); background-size: cover; background-attachment: fixed;">
-        
-        <div class="max-w-3xl mx-auto pb-20" id="campaign-container">
-            <!-- Εδώ θα ζωγραφιστεί δυναμικά η λίστα με τη JS -->
-        </div>
-    </main>
+        <main class="flex-1 overflow-y-auto p-4 md:p-8 relative" 
+              style="background-image: linear-gradient(rgba(28, 25, 23, 0.85), rgba(28, 25, 23, 0.95)), url('https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop'); background-size: cover; background-attachment: fixed;">
+            <div class="max-w-3xl mx-auto pb-20" id="campaign-container"></div>
+        </main>
+    </div>
 
-    <!-- Lesson Modal -->
+    <!-- MAP MODAL -->
     <div id="lesson-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-stone-900 border-2 border-amber-600 rounded-xl max-w-md w-full shadow-2xl overflow-hidden relative">
             <div class="bg-amber-900/50 p-4 border-b border-amber-700 flex justify-between items-start">
@@ -59,208 +63,437 @@
                 <span id="modal-icon" class="text-3xl"></span>
             </div>
             <div class="p-6">
-                <p class="text-amber-200 text-sm mb-2 font-semibold">Στόχος Μαθήματος:</p>
+                <p class="text-amber-200 text-sm mb-2 font-semibold">Lesson Objective:</p>
                 <p id="modal-desc" class="text-stone-300 text-sm mb-6"></p>
-                
                 <div class="flex space-x-3">
-                    <button onclick="playCurrentLesson()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold py-3 rounded-lg shadow transition">
-                        ⚔️ Έναρξη Quest
+                    <button onclick="launchNovel()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold py-3 rounded-lg shadow transition">
+                        ⚔️ Start Quest
                     </button>
                     <button onclick="closeModal()" class="bg-stone-700 hover:bg-stone-600 text-stone-200 font-bold py-3 px-4 rounded-lg shadow transition">
-                        Άκυρο
+                        Cancel
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification (Achievement Popup) -->
+
+    <!-- ==================== VIEW 2: VISUAL NOVEL ==================== -->
+    <div id="novel-view" class="hidden flex-1 flex flex-col h-full">
+        <header class="bg-stone-950 border-b border-amber-700/50 p-4 flex justify-between items-center shadow-lg z-20">
+            <div class="flex items-center space-x-3">
+                <button onclick="quitNovel()" class="text-stone-400 hover:text-white text-sm font-bold flex items-center">
+                    ◀ Flee (Map)
+                </button>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleCodex()" class="bg-amber-900/60 hover:bg-amber-800 border border-amber-600 px-3 py-1 rounded-lg text-xs font-bold text-amber-300 flex items-center space-x-1 shadow">
+                    <span>📜 Codex</span>
+                </button>
+                <div class="bg-amber-950/80 border border-amber-600 px-3 py-1 rounded-full flex items-center space-x-1 shadow-inner">
+                    <span class="text-yellow-400 font-bold">🪙</span>
+                    <span id="novel-sestertii" class="text-yellow-300 font-extrabold text-sm">0 HS</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="relative flex-1 bg-cover bg-center flex flex-col justify-end p-4 md:p-8" 
+              style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.9)), url('https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop');">
+            
+            <div class="w-full max-w-4xl mx-auto bg-stone-950/95 border-2 border-amber-600/80 rounded-xl shadow-2xl p-5 md:p-6 backdrop-blur-md relative z-10">
+                <div class="absolute -top-4 left-6 bg-amber-600 text-stone-950 px-4 py-1 rounded-lg font-bold text-xs md:text-sm uppercase tracking-wider shadow">
+                    <span id="speaker-name">Speaker</span>
+                </div>
+                <p id="dialogue-text" class="text-stone-200 text-base md:text-lg min-h-[4rem] mt-2 mb-4 leading-relaxed"></p>
+                <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- CODEX MODAL (Novel View) -->
+    <div id="codex-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-amber-100 text-stone-900 max-w-lg w-full p-6 rounded-xl border-4 border-amber-800 shadow-2xl relative">
+            <h2 class="text-xl font-bold text-amber-900 border-b-2 border-amber-800 pb-2 mb-3">📜 Papyrus</h2>
+            <p id="codex-content" class="text-sm mb-4 font-semibold text-stone-800"></p>
+            <button onclick="toggleCodex()" class="bg-amber-900 text-amber-100 font-bold px-4 py-2 rounded w-full hover:bg-amber-800 transition">Close Papyrus</button>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-emerald-800 text-white px-6 py-3 rounded-full shadow-2xl font-bold border-2 border-emerald-500 transition-opacity duration-300 opacity-0 pointer-events-none z-50">
-        🎉 Μάθημα Ολοκληρώθηκε! +50 HS
+        🎉 Quest Completed! +50 HS
     </div>
 
     <script>
-        // --- 1. Το State της εφαρμογής (Όπως το ViewModel) ---
+        // --- 1. GAME STATE ---
         let state = {
-            highestUnlockedLesson: 1, // Ο παίκτης ξεκινάει έχοντας πρόσβαση μόνο στο 1
+            highestUnlockedLesson: 1,
             sestertii: 0,
-            currentSelectedLessonId: null // Κρατάει το ID του μαθήματος που άνοιξε στο Modal
+            selectedLessonId: null,
+            novelStep: 0
         };
 
-        // --- 2. Τα Δεδομένα (Η Βάση μας) ---
-        const modules = [
-            {
-                title: "Ενότητα I: Τα Θεμέλια της Ρώμης",
-                lessons: [
-                    { id: 1, title: "Ecce Roma!", desc: "Εισαγωγή, αλφάβητο και λατινική προφορά.", icon: "🗣️" },
-                    { id: 2, title: "Η Οικογένεια", desc: "Η Α' Κλίση ουσιαστικών (θηλυκά σε -a).", icon: "👩" },
-                    { id: 3, title: "Το Νόμισμα", desc: "Η Β' Κλίση ουσιαστικών (αρσενικά σε -us).", icon: "🪙" },
-                    { id: 4, title: "Sum, Es, Est", desc: "Το ρήμα esse (είμαι) στον Ενεστώτα.", icon: "✨" },
-                    { id: 5, title: "Καλοί και Κακοί", desc: "Επίθετα Α'-Β' κλίσης & συμφωνία με το ουσιαστικό.", icon: "⚖️" }
+        // --- 2. LESSON DATA (All 20 Lessons in English/Latin) ---
+        const gameData = [
+            // MODULE 1
+            { 
+                id: 1, modTitle: "Module I: Foundations of Rome", title: "Ecce Roma!", icon: "🗣️", desc: "Introduction to Latin and the verb 'to be'.",
+                tip: "The verb 'est' means 'is'. In Latin, verbs often go at the end of the sentence. Example: Roma in Italia est (Rome is in Italy).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "Recruit! Welcome to the Legions. We speak Latin here. Tell me, where is Rome?" },
+                    { speaker: "Centurion Gaius", text: "Translate: 'Rome is in Italy'. Check your Codex if you need help!", quiz: true, 
+                      ansA: "Roma in Italia est.", valA: true, ansB: "Est Roma in Italia.", valB: false }
                 ]
             },
-            {
-                title: "Ενότητα II: Στο Στρατόπεδο",
-                lessons: [
-                    { id: 6, title: "Ο Λεγεωνάριος", desc: "Η Γ' Κλίση ουσιαστικών (σύμφωνα).", icon: "🛡️" },
-                    { id: 7, title: "Η Δράση", desc: "Οι 4 βασικές συζυγίες ρημάτων στον Ενεστώτα.", icon: "⚔️" },
-                    { id: 8, title: "Ο Στόχος", desc: "Αιτιατική πτώση (Άμεσο Αντικείμενο).", icon: "🎯" },
-                    { id: 9, title: "Η Ιδιοκτησία", desc: "Γενική πτώση (Κτητική).", icon: "📜" },
-                    { id: 10, title: "Η Αγορά", desc: "Αριθμητικά & Νομισματικό σύστημα.", icon: "⚖️" }
+            { 
+                id: 2, modTitle: "Module I: Foundations of Rome", title: "The Family", icon: "👩", desc: "1st Declension feminine nouns (-a).",
+                tip: "Nouns ending in '-a' are usually feminine (1st Declension). The Genitive singular (of the...) ends in '-ae'. Example: puella (girl) -> puellae (of the girl).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "Good. Now let's test your grammar. The word for girl is 'puella'." },
+                    { speaker: "Centurion Gaius", text: "How do you say 'of the girl' in Latin?", quiz: true, 
+                      ansA: "Puellam", valA: false, ansB: "Puellae", valB: true }
                 ]
             },
-            {
-                title: "Ενότητα III: Δράση και Ιστορία",
-                lessons: [
-                    { id: 11, title: "Χθες στη Σύγκλητο", desc: "Παρατατικός και Παρελθοντικοί χρόνοι.", icon: "🏛️" },
-                    { id: 12, title: "Δώρο στους Θεούς", desc: "Δοτική πτώση (Έμμεσο Αντικείμενο).", icon: "🏺" },
-                    { id: 13, title: "Αυτός, Εκείνος", desc: "Δεικτικές Αντωνυμίες (hic, ille, is).", icon: "👉" },
-                    { id: 14, title: "Et tu, Brute?", desc: "Κλητική πτώση (Προσφώνηση).", icon: "🗡️" },
-                    { id: 15, title: "Διαταγές!", desc: "Προστακτική έγκλιση (Εντολές λεγεωνάριου).", icon: "📢" }
+            { 
+                id: 3, modTitle: "Module I: Foundations of Rome", title: "The Coin", icon: "🪙", desc: "2nd Declension masculine nouns (-us).",
+                tip: "Nouns ending in '-us' are usually masculine (2nd Declension). The Nominative plural (the subjects) ends in '-i'. Example: sestertius -> sestertii.",
+                script: [
+                    { speaker: "Merchant Marcus", text: "Ah, a soldier! Do you have money? Our currency is the sestertius." },
+                    { speaker: "Merchant Marcus", text: "If you have more than one, what is the plural of 'sestertius'?", quiz: true, 
+                      ansA: "Sestertii", valA: true, ansB: "Sestertios", valB: false }
                 ]
             },
-            {
-                title: "Ενότητα IV: Η Τελική Δοκιμασία",
-                lessons: [
-                    { id: 16, title: "Σκοπός της Ζωής", desc: "Απλά απαρέμφατα και χρήση τους.", icon: "🔗" },
-                    { id: 17, title: "Ο Πράττων", desc: "Εισαγωγή στις μετοχές ενεστώτα.", icon: "🏃" },
-                    { id: 18, title: "Όταν και Όπου", desc: "Δευτερεύουσες προτάσεις (τοπικές/χρονικές).", icon: "⏳" },
-                    { id: 19, title: "Ο Πόλεμος της Γαλατίας", desc: "Ανάγνωση και μετάφραση ιστοριών του Καίσαρα.", icon: "📖" },
-                    { id: 20, title: "Magister", desc: "Boss Fight: Μετάφραση επιγραφής για την τελική νίκη.", icon: "👑" }
+            { 
+                id: 4, modTitle: "Module I: Foundations of Rome", title: "Sum, Es, Est", icon: "✨", desc: "The verb 'esse' (to be).",
+                tip: "Conjugation of to be: Sum (I am), Es (You are), Est (He/She/It is).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "Identity is important. I am a Centurion. You are a soldier (miles)." },
+                    { speaker: "Centurion Gaius", text: "How do you say 'I am' in Latin?", quiz: true, 
+                      ansA: "Est", valA: false, ansB: "Sum", valB: true }
+                ]
+            },
+            { 
+                id: 5, modTitle: "Module I: Foundations of Rome", title: "Good & Bad", icon: "⚖️", desc: "Adjectives matching nouns.",
+                tip: "Adjectives must match the noun in gender, number, and case. Bonus (masculine), Bona (feminine).",
+                script: [
+                    { speaker: "Senator Cicero", text: "A good soldier serves Rome. The word for good is bonus/bona." },
+                    { speaker: "Senator Cicero", text: "Which phrase is correct for 'A good girl'?", quiz: true, 
+                      ansA: "Bona puella", valA: true, ansB: "Bonus puella", valB: false }
+                ]
+            },
+            // MODULE 2
+            { 
+                id: 6, modTitle: "Module II: In the Camp", title: "The Legionary", icon: "🛡️", desc: "3rd Declension nouns.",
+                tip: "3rd declension nouns have varying nominatives but the genitive always ends in '-is'. Rex -> Regis (of the king).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "We serve the Emperor, not a king (rex). But you must know the word." },
+                    { speaker: "Centurion Gaius", text: "What is the Genitive (of the king)?", quiz: true, 
+                      ansA: "Regis", valA: true, ansB: "Regi", valB: false }
+                ]
+            },
+            { 
+                id: 7, modTitle: "Module II: In the Camp", title: "The Action", icon: "⚔️", desc: "Present Tense Verbs.",
+                tip: "Verbs change endings based on the subject: -o (I), -s (You), -t (He/She/It). Amo = I love. Amat = He loves.",
+                script: [
+                    { speaker: "Centurion Gaius", text: "A soldier acts! The verb 'to love' is amare." },
+                    { speaker: "Centurion Gaius", text: "How do you say 'He loves'?", quiz: true, 
+                      ansA: "Amo", valA: false, ansB: "Amat", valB: true }
+                ]
+            },
+            { 
+                id: 8, modTitle: "Module II: In the Camp", title: "The Target", icon: "🎯", desc: "Accusative Case (Direct Object).",
+                tip: "The Accusative case receives the action and usually ends in '-m' in the singular. Puella (nom) -> Puellam (acc).",
+                script: [
+                    { speaker: "Merchant Marcus", text: "I see a girl. 'Puella' is the subject, but as an object it changes." },
+                    { speaker: "Merchant Marcus", text: "Translate: 'The soldier loves the girl'.", quiz: true, 
+                      ansA: "Miles puellam amat", valA: true, ansB: "Miles puella amat", valB: false }
+                ]
+            },
+            { 
+                id: 9, modTitle: "Module II: In the Camp", title: "The Property", icon: "📜", desc: "Genitive Case practice.",
+                tip: "Genitive shows possession. 2nd declension genitive ends in '-i'. Gladius (sword) -> Gladii (of the sword).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "Whose sword is this? It belongs to the master (dominus)." },
+                    { speaker: "Centurion Gaius", text: "How do you say 'The sword of the master'?", quiz: true, 
+                      ansA: "Gladius dominum", valA: false, ansB: "Gladius domini", valB: true }
+                ]
+            },
+            { 
+                id: 10, modTitle: "Module II: In the Camp", title: "The Market", icon: "⚖️", desc: "Roman Numerals.",
+                tip: "Unus (1), Duo (2), Tres (3), Quattuor (4). 4 Sestertii = 1 Denarius.",
+                script: [
+                    { speaker: "Merchant Marcus", text: "This shield costs one Denarius. That is exactly four Sestertii." },
+                    { speaker: "Merchant Marcus", text: "How do you write 'four' in Latin?", quiz: true, 
+                      ansA: "Quattuor", valA: true, ansB: "Quinque", valB: false }
+                ]
+            },
+            // MODULE 3
+            { 
+                id: 11, modTitle: "Module III: Action and History", title: "Yesterday", icon: "🏛️", desc: "Imperfect Tense (Past).",
+                tip: "Imperfect tense uses the infix '-ba-'. Ambulat (he walks) -> Ambulabat (he was walking).",
+                script: [
+                    { speaker: "Senator Cicero", text: "Yesterday, the man was walking in the forum." },
+                    { speaker: "Senator Cicero", text: "Which verb means 'he was walking'?", quiz: true, 
+                      ansA: "Ambulat", valA: false, ansB: "Ambulabat", valB: true }
+                ]
+            },
+            { 
+                id: 12, modTitle: "Module III: Action and History", title: "Gift to the Gods", icon: "🏺", desc: "Dative Case (Indirect Object).",
+                tip: "Dative answers 'to whom/for whom'. 1st Dec: -ae. 2nd Dec: -o. 3rd Dec: -i. Militi (to the soldier).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "I give the sword TO the soldier." },
+                    { speaker: "Centurion Gaius", text: "Choose the correct Dative form for 'to the soldier':", quiz: true, 
+                      ansA: "Militi", valA: true, ansB: "Militem", valB: false }
+                ]
+            },
+            { 
+                id: 13, modTitle: "Module III: Action and History", title: "This and That", icon: "👉", desc: "Demonstrative Pronouns.",
+                tip: "Hic (this), Ille (that). Hic vir (this man), Ille vir (that man).",
+                script: [
+                    { speaker: "Merchant Marcus", text: "I don't want THAT shield, I want THIS shield." },
+                    { speaker: "Merchant Marcus", text: "Which pronoun means 'This' (masculine)?", quiz: true, 
+                      ansA: "Hic", valA: true, ansB: "Ille", valB: false }
+                ]
+            },
+            { 
+                id: 14, modTitle: "Module III: Action and History", title: "Et tu, Brute?", icon: "🗡️", desc: "Vocative Case (Direct Address).",
+                tip: "Vocative is used to call someone. Usually identical to nominative, EXCEPT 2nd declension '-us' becomes '-e'. Marcus -> Marce!",
+                script: [
+                    { speaker: "Julius Caesar", text: "When you call my friend Brutus, you must use the Vocative case." },
+                    { speaker: "Julius Caesar", text: "How do you address Brutus directly?", quiz: true, 
+                      ansA: "Brutus!", valA: false, ansB: "Brute!", valB: true }
+                ]
+            },
+            { 
+                id: 15, modTitle: "Module III: Action and History", title: "Orders!", icon: "📢", desc: "Imperative Mood.",
+                tip: "Imperative gives commands. Drop the '-re' from the infinitive. Audire (to hear) -> Audi! (Hear/Listen!).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "In battle, you don't ask, you command!" },
+                    { speaker: "Centurion Gaius", text: "What is the command form for 'Listen!' (singular)?", quiz: true, 
+                      ansA: "Audi!", valA: true, ansB: "Audis", valB: false }
+                ]
+            },
+            // MODULE 4
+            { 
+                id: 16, modTitle: "Module IV: The Final Trial", title: "Purpose", icon: "🔗", desc: "Infinitives.",
+                tip: "Infinitives end in '-re' and mean 'to [verb]'. Amare (to love), Vincere (to conquer).",
+                script: [
+                    { speaker: "Senator Cicero", text: "It is essential TO CONQUER the enemy." },
+                    { speaker: "Senator Cicero", text: "Which word means 'to conquer'?", quiz: true, 
+                      ansA: "Vincere", valA: true, ansB: "Vincit", valB: false }
+                ]
+            },
+            { 
+                id: 17, modTitle: "Module IV: The Final Trial", title: "The Doer", icon: "🏃", desc: "Present Participles.",
+                tip: "Present participles end in '-ns' (nom) or '-ntis' (gen). They mean '-ing'. Currens (running).",
+                script: [
+                    { speaker: "Centurion Gaius", text: "I see a RUNNING boy in the camp." },
+                    { speaker: "Centurion Gaius", text: "Which word means 'running'?", quiz: true, 
+                      ansA: "Currit", valA: false, ansB: "Currens", valB: true }
+                ]
+            },
+            { 
+                id: 18, modTitle: "Module IV: The Final Trial", title: "When & Where", icon: "⏳", desc: "Question words & Conjunctions.",
+                tip: "Ubi = Where/When. Cur = Why. Quis = Who. Quid = What.",
+                script: [
+                    { speaker: "Merchant Marcus", text: "WHERE is the gold?" },
+                    { speaker: "Merchant Marcus", text: "What is the Latin word for 'Where'?", quiz: true, 
+                      ansA: "Ubi", valA: true, ansB: "Cur", valB: false }
+                ]
+            },
+            { 
+                id: 19, modTitle: "Module IV: The Final Trial", title: "The Gallic War", icon: "📖", desc: "Translating Caesar.",
+                tip: "Gallia est omnis divisa in partes tres = All Gaul is divided into three parts.",
+                script: [
+                    { speaker: "Julius Caesar", text: "I am writing my memoirs. 'Gallia est omnis divisa in partes tres'." },
+                    { speaker: "Julius Caesar", text: "How many parts is Gaul divided into?", quiz: true, 
+                      ansA: "Tres (Three)", valA: true, ansB: "Duo (Two)", valB: false }
+                ]
+            },
+            { 
+                id: 20, modTitle: "Module IV: The Final Trial", title: "Magister", icon: "👑", desc: "The Final Boss.",
+                tip: "Alea iacta est = The die is cast (The decision is made and irreversible).",
+                script: [
+                    { speaker: "Julius Caesar", text: "We stand at the Rubicon river. There is no turning back." },
+                    { speaker: "Julius Caesar", text: "Translate my famous words: 'Alea iacta est'.", quiz: true, 
+                      ansA: "The die is cast.", valA: true, ansB: "The battle is won.", valB: false }
                 ]
             }
         ];
 
-        // --- 3. Η συνάρτηση που "ζωγραφίζει" το UI (Το Recompose μας) ---
+        // --- 3. RENDERING THE MAP ---
         function renderMap(justUnlockedId = null) {
             const container = document.getElementById('campaign-container');
-            container.innerHTML = ''; // Καθαρίζουμε το UI
+            container.innerHTML = '';
+            
+            // Group by Modules dynamically
+            const modulesMap = {};
+            gameData.forEach(lesson => {
+                if(!modulesMap[lesson.modTitle]) modulesMap[lesson.modTitle] = [];
+                modulesMap[lesson.modTitle].push(lesson);
+            });
 
-            modules.forEach(mod => {
-                // Φτιάχνουμε το Header της Ενότητας
+            for (const [modTitle, lessons] of Object.entries(modulesMap)) {
                 const modHeader = document.createElement('div');
                 modHeader.className = "mb-4 mt-8 flex items-center space-x-4";
                 modHeader.innerHTML = `
                     <div class="h-[2px] flex-1 bg-amber-700/50"></div>
-                    <h3 class="text-amber-500 font-bold tracking-widest uppercase text-sm text-center">${mod.title}</h3>
+                    <h3 class="text-amber-500 font-bold tracking-widest uppercase text-sm text-center">${modTitle}</h3>
                     <div class="h-[2px] flex-1 bg-amber-700/50"></div>
                 `;
                 container.appendChild(modHeader);
 
-                // Φτιάχνουμε τη λίστα των μαθημάτων
                 const lessonList = document.createElement('div');
                 lessonList.className = "space-y-3";
 
-                mod.lessons.forEach(lesson => {
-                    // Εδώ είναι η καρδιά της λογικής! Ελέγχουμε το state.
+                lessons.forEach(lesson => {
                     const isLocked = lesson.id > state.highestUnlockedLesson;
                     const isCompleted = lesson.id < state.highestUnlockedLesson;
-                    const isJustUnlocked = lesson.id === justUnlockedId; // Για το animation
+                    const isJustUnlocked = lesson.id === justUnlockedId;
 
-                    const card = document.createElement('div');
-                    
-                    // Δυναμικά CSS classes
                     let cardClasses = "p-4 rounded-xl border-2 flex items-center justify-between transition-all duration-300 relative overflow-hidden ";
-                    
                     if (isLocked) {
                         cardClasses += "bg-stone-900/50 border-stone-800 opacity-60 cursor-not-allowed";
                     } else {
                         cardClasses += "bg-stone-800/90 border-amber-600/50 hover:border-amber-400 hover:bg-stone-700 cursor-pointer shadow-lg transform hover:-translate-y-1";
-                        if (isJustUnlocked) cardClasses += " just-unlocked border-amber-400"; // Προσθήκη animation
+                        if (isJustUnlocked) cardClasses += " just-unlocked border-amber-400";
                     }
-                    
+
+                    const card = document.createElement('div');
                     card.className = cardClasses;
-                    
-                    // Το περιεχόμενο της κάρτας
                     card.innerHTML = `
-                        ${isCompleted ? '<div class="absolute top-0 right-0 bg-emerald-600 text-xs px-2 py-1 rounded-bl-lg font-bold">✓ Ολοκληρώθηκε</div>' : ''}
+                        ${isCompleted ? '<div class="absolute top-0 right-0 bg-emerald-600 text-xs px-2 py-1 rounded-bl-lg font-bold">✓ Cleared</div>' : ''}
                         <div class="flex items-center space-x-4">
                             <div class="w-12 h-12 rounded-full ${isLocked ? 'bg-stone-800 text-stone-500' : 'bg-amber-900/50 text-amber-400'} flex items-center justify-center text-xl border ${isLocked ? 'border-stone-700' : 'border-amber-500'}">
                                 ${isLocked ? '🔒' : lesson.icon}
                             </div>
                             <div>
-                                <h4 class="font-bold ${isLocked ? 'text-stone-500' : 'text-stone-200'}">Μάθημα ${lesson.id}: ${lesson.title}</h4>
+                                <h4 class="font-bold ${isLocked ? 'text-stone-500' : 'text-stone-200'}">Lesson ${lesson.id}: ${lesson.title}</h4>
                                 <p class="text-xs ${isLocked ? 'text-stone-600' : 'text-stone-400'} mt-1 truncate max-w-[200px] md:max-w-md">${lesson.desc}</p>
                             </div>
                         </div>
                         ${!isLocked ? '<span class="text-amber-500 hidden md:block text-2xl">▶</span>' : ''}
                     `;
 
-                    // Αν δεν είναι κλειδωμένο, του δίνουμε onclick event
-                    if (!isLocked) {
-                        card.onclick = () => openModal(mod.title, lesson);
-                    }
-                    
+                    if (!isLocked) card.onclick = () => openModal(lesson);
                     lessonList.appendChild(card);
                 });
-
                 container.appendChild(lessonList);
-            });
-
-            // Ανανεώνουμε το HUD των Σηστέρτιων
-            document.getElementById('sestertii-display').innerText = state.sestertii + " HS";
+            }
+            updateSestertii();
         }
 
-        // --- 4. Logic του Modal ---
+        function updateSestertii() {
+            document.getElementById('map-sestertii').innerText = state.sestertii + " HS";
+            document.getElementById('novel-sestertii').innerText = state.sestertii + " HS";
+        }
+
+        // --- 4. MAP MODAL LOGIC ---
         const modal = document.getElementById('lesson-modal');
-        
-        function openModal(moduleTitle, lesson) {
-            state.currentSelectedLessonId = lesson.id; // Αποθηκεύουμε ποιο μάθημα πάτησε
-            document.getElementById('modal-module').innerText = moduleTitle;
-            document.getElementById('modal-title').innerText = `Μάθημα ${lesson.id}: ${lesson.title}`;
+        function openModal(lesson) {
+            state.selectedLessonId = lesson.id;
+            document.getElementById('modal-module').innerText = lesson.modTitle;
+            document.getElementById('modal-title').innerText = `Lesson ${lesson.id}: ${lesson.title}`;
             document.getElementById('modal-desc').innerText = lesson.desc;
             document.getElementById('modal-icon').innerText = lesson.icon;
             modal.classList.remove('hidden');
         }
+        function closeModal() { modal.classList.add('hidden'); }
 
-        function closeModal() {
-            modal.classList.add('hidden');
-            state.currentSelectedLessonId = null;
-        }
-
-        // --- 5. Η Λειτουργία Ολοκλήρωσης (Το Gameplay Loop) ---
-        function playCurrentLesson() {
+        // --- 5. VISUAL NOVEL ENGINE ---
+        function launchNovel() {
             closeModal();
+            document.getElementById('map-view').classList.add('hidden');
+            document.getElementById('novel-view').classList.remove('hidden');
+            document.getElementById('novel-view').classList.add('flex');
             
-            // Κάνουμε simulate ότι έπαιξε και κέρδισε το μάθημα
-            const completedId = state.currentSelectedLessonId;
+            state.novelStep = 0;
+            renderNovelStep();
+        }
+
+        function quitNovel() {
+            document.getElementById('novel-view').classList.add('hidden');
+            document.getElementById('novel-view').classList.remove('flex');
+            document.getElementById('map-view').classList.remove('hidden');
+        }
+
+        function toggleCodex() {
+            const codex = document.getElementById('codex-modal');
+            if (codex.classList.contains('hidden')) {
+                const lesson = gameData.find(l => l.id === state.selectedLessonId);
+                document.getElementById('codex-content').innerText = lesson.tip;
+                codex.classList.remove('hidden');
+            } else {
+                codex.classList.add('hidden');
+            }
+        }
+
+        function renderNovelStep() {
+            const lesson = gameData.find(l => l.id === state.selectedLessonId);
+            const stepData = lesson.script[state.novelStep];
+            
+            document.getElementById('speaker-name').innerText = stepData.speaker;
+            document.getElementById('dialogue-text').innerText = stepData.text;
+            
+            const choicesContainer = document.getElementById('choices-container');
+            choicesContainer.innerHTML = '';
+
+            if (stepData.quiz) {
+                choicesContainer.innerHTML = `
+                    <button onclick="handleAnswer(${stepData.valA})" class="bg-stone-800 hover:bg-emerald-800 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm shadow">A) ${stepData.ansA}</button>
+                    <button onclick="handleAnswer(${stepData.valB})" class="bg-stone-800 hover:bg-rose-900 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm shadow">B) ${stepData.ansB}</button>
+                `;
+            } else {
+                choicesContainer.innerHTML = `
+                    <button onclick="nextNovelStep()" class="col-span-1 md:col-span-2 bg-amber-600 text-stone-950 font-bold p-3 rounded-lg text-center shadow">Next ➔</button>
+                `;
+            }
+        }
+
+        function handleAnswer(isCorrect) {
+            const lesson = gameData.find(l => l.id === state.selectedLessonId);
+            const choicesContainer = document.getElementById('choices-container');
+            
+            if (isCorrect) {
+                document.getElementById('dialogue-text').innerText = "Excellent! You earned +50 HS.";
+                state.sestertii += 50;
+                updateSestertii();
+                choicesContainer.innerHTML = `<button onclick="finishLesson()" class="col-span-1 md:col-span-2 bg-emerald-600 text-white font-bold p-3 rounded-lg text-center shadow">Complete Quest ➔</button>`;
+            } else {
+                document.getElementById('dialogue-text').innerText = "Incorrect! Review the Codex. You lost -10 HS.";
+                state.sestertii -= 10;
+                updateSestertii();
+                choicesContainer.innerHTML = `<button onclick="renderNovelStep()" class="col-span-1 md:col-span-2 bg-rose-800 text-white font-bold p-3 rounded-lg text-center shadow">Try Again</button>`;
+            }
+        }
+
+        function nextNovelStep() {
+            state.novelStep++;
+            renderNovelStep();
+        }
+
+        function finishLesson() {
+            quitNovel();
+            
             let newlyUnlockedId = null;
-
-            // 5α: Αν ολοκλήρωσε το "τελευταίο" διαθέσιμο, του ξεκλειδώνουμε το επόμενο!
-            if (completedId === state.highestUnlockedLesson && state.highestUnlockedLesson < 20) {
+            if (state.selectedLessonId === state.highestUnlockedLesson && state.highestUnlockedLesson < 20) {
                 state.highestUnlockedLesson++;
-                newlyUnlockedId = state.highestUnlockedLesson; // Για να του κάνουμε animation
+                newlyUnlockedId = state.highestUnlockedLesson;
             }
 
-            // 5β: Του δίνουμε την ανταμοιβή
-            state.sestertii += 50;
-
-            // 5γ: Εμφάνιση Toast & Re-render (Recompose)
-            showToast(`🎉 Μάθημα ${completedId} Ολοκληρώθηκε! +50 HS`);
+            showToast(`🎉 Lesson ${state.selectedLessonId} Cleared! +50 HS`);
             renderMap(newlyUnlockedId);
-
-            // Αν ξεκλείδωσε νέο, σκρολάρουμε ελαφρώς προς τα κάτω για να το δει
-            if (newlyUnlockedId) {
-                setTimeout(() => {
-                    window.scrollBy({ top: 100, behavior: 'smooth' });
-                }, 300);
-            }
         }
 
-        function showToast(message) {
+        function showToast(msg) {
             const toast = document.getElementById('toast');
-            toast.innerText = message;
+            toast.innerText = msg;
             toast.classList.remove('opacity-0');
-            
-            setTimeout(() => {
-                toast.classList.add('opacity-0');
-            }, 2500);
+            setTimeout(() => toast.classList.add('opacity-0'), 2500);
         }
 
-        // --- Αρχικοποίηση ---
-        // Τρέχουμε την renderMap την πρώτη φορά που φορτώνει η σελίδα
+        // --- INIT ---
         renderMap();
-
     </script>
 </body>
 </html>
