@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roma: Sestertius Quest - Latin Visual Novel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-900 text-stone-100 font-sans h-screen flex flex-col justify-between overflow-hidden">
+
+    <!-- Top HUD (Stats & Sestertii) -->
+    <header class="bg-stone-950 border-b border-amber-700/50 p-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <span class="text-2xl">🏛️</span>
+            <div>
+                <h1 class="font-bold text-amber-400 text-sm md:text-base">Roma: Sestertius Quest</h1>
+                <p class="text-xs text-stone-400">Κεφάλαιο Α': Το Καζάνι του Καίσαρα</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="bg-amber-950/80 border border-amber-600 px-3 py-1 rounded-full flex items-center space-x-1 shadow-inner">
+                <span class="text-yellow-400 font-bold">🪙</span>
+                <span id="sestertii" class="text-yellow-300 font-extrabold text-sm">100 HS</span>
+            </div>
+            <div class="bg-stone-800 px-3 py-1 rounded-full border border-stone-700 text-xs">
+                XP: <span id="xp" class="text-amber-400 font-bold">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Visual Novel Screen Area -->
+    <main class="relative flex-1 bg-cover bg-center flex flex-col justify-end p-4 md:p-8" 
+          style="background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop');">
+
+        <!-- Character Sprite Placeholder -->
+        <div class="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+            <div class="text-9xl">🛡️</div>
+        </div>
+
+        <!-- Dialogue Box Container -->
+        <div class="w-full max-w-4xl mx-auto bg-stone-950/90 border-2 border-amber-600/80 rounded-xl shadow-2xl p-5 md:p-6 backdrop-blur-md relative z-10">
+            
+            <!-- Speaker Name -->
+            <div class="absolute -top-4 left-6 bg-amber-600 text-stone-950 px-4 py-1 rounded-lg font-bold text-xs md:text-sm uppercase tracking-wider shadow">
+                <span id="speaker-name">Εκατόνταρχος Γάιος</span>
+            </div>
+
+            <!-- Dialogue Text -->
+            <p id="dialogue-text" class="text-stone-200 text-base md:text-lg min-h-[4rem] mt-2 mb-4 leading-relaxed">
+                «Ακούστε με, στρατιώτες! Ο Καίσαρας ζητάει αυστηρή οικονομική πειθαρχία. Όποιος δεν γνωρίζει τη λατινική γραμματική, θα πληρώσει πρόστιμο σε σηστέρτιους!»
+            </p>
+
+            <!-- Interactive Choices / Quiz Options -->
+            <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <button onclick="handleChoice(0)" class="bg-stone-800 hover:bg-amber-700 hover:text-stone-950 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm md:text-base shadow">
+                    1. Να ρωτήσω πόσοι σηστέρτιοι αντιστοιχούν σε ένα δηνάριο.
+                </button>
+                <button onclick="handleChoice(1)" class="bg-stone-800 hover:bg-amber-700 hover:text-stone-950 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm md:text-base shadow">
+                    2. Να αποδείξω τις γνώσεις μου στα Λατινικά για να κερδίσω bonus!
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Simple Game Logic Script -->
+    <script>
+        let state = {
+            sestertii: 100,
+            xp: 0,
+            step: 0
+        };
+
+        function updateHUD() {
+            document.getElementById('sestertii').innerText = state.sestertii + " HS";
+            document.getElementById('xp').innerText = state.xp;
+        }
+
+        function handleChoice(option) {
+            const speaker = document.getElementById('speaker-name');
+            const dialogue = document.getElementById('dialogue-text');
+            const container = document.getElementById('choices-container');
+
+            if (state.step === 0) {
+                if (option === 0) {
+                    speaker.innerText = "Εκατόνταρχος Γάιος";
+                    dialogue.innerText = "«Τέσσερα σηστέρτια κάνουν ακριβώς ένα δηνάριο, νεαρέ! Μην το ξεχάσεις ποτέ αυτό στα λογιστικά του στρατοπέδου.»";
+                    state.sestertii += 10;
+                    state.xp += 20;
+                } else {
+                    speaker.innerText = "Εκατόνταρχος Γάιος";
+                    dialogue.innerText = "«Ωραία! Για να σε δω: Ποια είναι η γενική πτώση του ουσιαστικού Sestertius (B' κλίση);»";
+                    
+                    // Change choices to a Latin Quiz!
+                    container.innerHTML = `
+                        <button onclick="handleQuiz(true)" class="bg-stone-800 hover:bg-emerald-700 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition text-sm">A) Sestertii</button>
+                        <button onclick="handleQuiz(false)" class="bg-stone-800 hover:bg-red-900 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition text-sm">B) Sestertio</button>
+                    `;
+                    state.step = 1;
+                    updateHUD();
+                    return;
+                }
+                state.step = 2;
+                container.innerHTML = `<button onclick="resetGame()" class="bg-amber-600 text-stone-950 font-bold p-3 rounded-lg text-center w-full">Συνέχεια στην ιστορία...</button>`;
+            } else if (state.step === 2) {
+                speaker.innerText = "Γαλάτης Έμπορος";
+                dialogue.innerText = "«Ψιτ! Θέλεις να κρύψουμε μαζί το καζάνι με τα νομίσματα μακριά από τους φοροεισπράκτορες του Καίσαρα;»";
+                container.innerHTML = `
+                    <button onclick="resetGame()" class="bg-stone-800 hover:bg-amber-700 p-3 rounded-lg text-left text-sm">Επανεκκίνηση Demo</button>
+                `;
+                state.step = 0;
+            }
+            updateHUD();
+        }
+
+        function handleQuiz(isCorrect) {
+            const speaker = document.getElementById('speaker-name');
+            const dialogue = document.getElementById('dialogue-text');
+            const container = document.getElementById('choices-container');
+
+            if (isCorrect) {
+                speaker.innerText = "Εκατόνταρχος Γάιος";
+                dialogue.innerText = "«Εξαιρετικό! Απάντησες σωστά. Κερδίζεις +50 Sestertii και +50 XP!»";
+                state.sestertii += 50;
+                state.xp += 50;
+            } else {
+                speaker.innerText = "Εκατόνταρχος Γάιος";
+                dialogue.innerText = "«Λάθος! Πλήρωσε πρόστιμο 20 Sestertii για το λάθος στη γενική!»";
+                state.sestertii -= 20;
+            }
+            
+            state.step = 2;
+            container.innerHTML = `<button onclick="handleChoice(0)" class="bg-amber-600 text-stone-950 font-bold p-3 rounded-lg text-center w-full">Επόμενη Σκηνή</button>`;
+            updateHUD();
+        }
+
+        function resetGame() {
+            state.sestertii = 100;
+            state.xp = 0;
+            state.step = 0;
+            document.getElementById('speaker-name').innerText = "Εκατόνταρχος Γάιος";
+            document.getElementById('dialogue-text').innerText = "«Ακούστε με, στρατιώτες! Ο Καίσαρας ζητάει αυστηρή οικονομική πειθαρχία. Όποιος δεν γνωρίζει τη λατινική γραμματική, θα πληρώσει πρόστιμο σε σηστέρτιους!»";
+            document.getElementById('choices-container').innerHTML = `
+                <button onclick="handleChoice(0)" class="bg-stone-800 hover:bg-amber-700 hover:text-stone-950 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm md:text-base shadow">1. Να ρωτήσω πόσοι σηστέρτιοι αντιστοιχούν σε ένα δηνάριο.</button>
+                <button onclick="handleChoice(1)" class="bg-stone-800 hover:bg-amber-700 hover:text-stone-950 border border-stone-700 text-stone-200 p-3 rounded-lg text-left transition font-medium text-sm md:text-base shadow">2. Να αποδείξω τις γνώσεις μου στα Λατινικά για να κερδίσω bonus!</button>
+            `;
+            updateHUD();
+        }
+    </script>
+</body>
+</html>
